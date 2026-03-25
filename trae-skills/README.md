@@ -10,10 +10,11 @@
 
 ```
 trae-skills/
-├── global-install.sh  # 全局安装脚本（安装到 ~/.trae/skills）
-├── install.sh         # 项目本地安装脚本
-├── sync.sh            # 版本同步脚本
-└── README.md          # 本文档
+├── global-install.sh   # 全局安装脚本（安装到 ~/.trae/skills）
+├── project-install.sh  # 指定目录安装脚本（安装到 <project>/.trae/skills）
+├── install.sh          # 项目本地安装脚本
+├── sync.sh             # 版本同步脚本
+└── README.md           # 本文档
 ```
 
 全局安装后目录结构：
@@ -29,6 +30,14 @@ trae-skills/
 ├── ... 更多技能
 ```
 
+指定目录安装后目录结构：
+```
+<path/to/project>/.trae/skills/
+├── gstack/                    # 根技能
+├── gstack-review/            # PR审查技能
+├── ... 更多技能
+```
+
 项目本地安装后目录结构：
 ```
 trae-skills/
@@ -41,10 +50,10 @@ trae-skills/
 
 | 特性 | Claude Code | Trae IDE |
 |------|-------------|----------|
-| 技能目录 | `~/.claude/skills/gstack` | `~/.trae/skills` (全局) 或 `./trae-skills/` (项目本地) |
+| 技能目录 | `~/.claude/skills/gstack` | `~/.trae/skills` (全局) 或 `<project>/.trae/skills` (指定目录) 或 `./trae-skills/` (项目本地) |
 | 路径引用 | 硬编码路径 | 环境变量 + 相对路径 |
 | Frontmatter | 完整字段 | 仅 name + description |
-| 安装方式 | `./setup --host claude` | `./global-install.sh` 或 `./install.sh` |
+| 安装方式 | `./setup --host claude` | `./global-install.sh` 或 `./project-install.sh <dir>` 或 `./install.sh` |
 
 ### 3. 核心修改
 
@@ -69,7 +78,26 @@ chmod +x global-install.sh
 
 安装后技能目录：`~/.trae/skills`
 
-### 方法二：项目本地安装
+### 方法二：指定目录安装
+
+将技能安装到指定项目的 `.trae/skills` 目录：
+
+```bash
+cd trae-skills
+chmod +x project-install.sh
+./project-install.sh /Users/boommanpro/solo-agent-dashboard
+```
+
+安装后技能目录：`/Users/boommanpro/solo-agent-dashboard/.trae/skills`
+
+也可以在项目目录中使用 `.` 表示当前目录：
+
+```bash
+cd /path/to/your/project
+/path/to/gstack/trae-skills/project-install.sh .
+```
+
+### 方法三：项目本地安装
 
 将技能安装到当前项目的 `trae-skills/` 目录：
 
@@ -79,13 +107,13 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### 方法三：通过主setup脚本
+### 方法四：通过主setup脚本
 
 ```bash
 ./setup --host trae
 ```
 
-### 方法四：通过npm脚本
+### 方法五：通过npm脚本
 
 ```bash
 bun run trae:install
@@ -99,6 +127,7 @@ bun run trae:install
 2. 导航到 Skills/Agents 配置
 3. 添加技能目录路径：
    - **全局安装**：`~/.trae/skills`
+   - **指定目录安装**：`<project>/.trae/skills`
    - **项目本地安装**：`/path/to/gstack/trae-skills`
 
 或设置环境变量：
@@ -107,6 +136,11 @@ bun run trae:install
 export GSTACK_ROOT="$HOME/.trae/skills/gstack"
 export GSTACK_BIN="$HOME/.trae/skills/gstack/bin"
 export GSTACK_BROWSE="$HOME/.trae/skills/gstack/browse/dist"
+
+# 指定目录安装（例如 solo-agent-dashboard 项目）
+export GSTACK_ROOT="/Users/boommanpro/solo-agent-dashboard/.trae/skills/gstack"
+export GSTACK_BIN="/Users/boommanpro/solo-agent-dashboard/.trae/skills/gstack/bin"
+export GSTACK_BROWSE="/Users/boommanpro/solo-agent-dashboard/.trae/skills/gstack/browse/dist"
 
 # 项目本地安装
 export GSTACK_ROOT="/path/to/gstack/trae-skills/gstack"
