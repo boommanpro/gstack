@@ -1,4 +1,4 @@
-export type Host = 'claude' | 'codex';
+export type Host = 'claude' | 'codex' | 'trae';
 
 export interface HostPaths {
   skillRoot: string;
@@ -20,6 +20,12 @@ export const HOST_PATHS: Record<Host, HostPaths> = {
     binDir: '$GSTACK_BIN',
     browseDir: '$GSTACK_BROWSE',
   },
+  trae: {
+    skillRoot: '$GSTACK_ROOT',
+    localSkillRoot: 'trae-skills/gstack',
+    binDir: '$GSTACK_BIN',
+    browseDir: '$GSTACK_BROWSE',
+  },
 };
 
 export interface TemplateContext {
@@ -28,5 +34,5 @@ export interface TemplateContext {
   benefitsFrom?: string[];
   host: Host;
   paths: HostPaths;
-  preambleTier?: number;  // 1-4, controls which preamble sections are included
+  preambleTier?: number;
 }

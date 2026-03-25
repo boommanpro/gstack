@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gstack setup — build browser binary + register skills with Claude Code / Codex
+# gstack setup — build browser binary + register skills with Claude Code / Codex / Trae
 set -e
 
 if ! command -v bun >/dev/null 2>&1; then
@@ -14,6 +14,7 @@ INSTALL_SKILLS_DIR="$(dirname "$INSTALL_GSTACK_DIR")"
 BROWSE_BIN="$SOURCE_GSTACK_DIR/browse/dist/browse"
 CODEX_SKILLS="$HOME/.codex/skills"
 CODEX_GSTACK="$CODEX_SKILLS/gstack"
+TRAE_SKILLS="$SOURCE_GSTACK_DIR/trae-skills"
 
 IS_WINDOWS=0
 case "$(uname -s)" in
@@ -25,7 +26,7 @@ HOST="claude"
 LOCAL_INSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --host) [ -z "$2" ] && echo "Missing value for --host (expected claude, codex, kiro, or auto)" >&2 && exit 1; HOST="$2"; shift 2 ;;
+    --host) [ -z "$2" ] && echo "Missing value for --host (expected claude, codex, kiro, trae, or auto)" >&2 && exit 1; HOST="$2"; shift 2 ;;
     --host=*) HOST="${1#--host=}"; shift ;;
     --local) LOCAL_INSTALL=1; shift ;;
     *) shift ;;
@@ -33,26 +34,28 @@ while [ $# -gt 0 ]; do
 done
 
 case "$HOST" in
-  claude|codex|kiro|auto) ;;
-  *) echo "Unknown --host value: $HOST (expected claude, codex, kiro, or auto)" >&2; exit 1 ;;
+  claude|codex|kiro|trae|auto) ;;
+  *) echo "Unknown --host value: $HOST (expected claude, codex, kiro, trae, or auto)" >&2; exit 1 ;;
 esac
 
 # --local: install to .claude/skills/ in the current working directory
 if [ "$LOCAL_INSTALL" -eq 1 ]; then
-  if [ "$HOST" = "codex" ]; then
-    echo "Error: --local is only supported for Claude Code (not Codex)." >&2
+  if [ "$HOST" = "codex" ] || [ "$HOST" = "trae" ]; then
+    echo "Error: --local is only supported for Claude Code (not Codex or Trae)." >&2
     exit 1
   fi
   INSTALL_SKILLS_DIR="$(pwd)/.claude/skills"
   mkdir -p "$INSTALL_SKILLS_DIR"
   HOST="claude"
   INSTALL_CODEX=0
+  INSTALL_TRAE=0
 fi
 
 # For auto: detect which agents are installed
 INSTALL_CLAUDE=0
 INSTALL_CODEX=0
 INSTALL_KIRO=0
+INSTALL_TRAE=0
 if [ "$HOST" = "auto" ]; then
   command -v claude >/dev/null 2>&1 && INSTALL_CLAUDE=1
   command -v codex >/dev/null 2>&1 && INSTALL_CODEX=1
@@ -67,6 +70,8 @@ elif [ "$HOST" = "codex" ]; then
   INSTALL_CODEX=1
 elif [ "$HOST" = "kiro" ]; then
   INSTALL_KIRO=1
+elif [ "$HOST" = "trae" ]; then
+  INSTALL_TRAE=1
 fi
 
 migrate_direct_codex_install() {
@@ -437,6 +442,80 @@ if [ "$INSTALL_KIRO" -eq 1 ]; then
     echo "gstack ready (kiro)."
     echo "  browse: $BROWSE_BIN"
     echo "  kiro skills: $KIRO_SKILLS"
+  fi
+fi
+
+# 7. Install for Trae IDE
+if [ "$INSTALL_TRAE" -eq 1 ]; then
+  echo "Setting up Trae skills..."
+  
+  # Run the Trae installer if it exists
+  if [ -x "$TRAE_SKILLS/install.sh" ]; then
+    "$TRAE_SKILLS/install.sh"
+  else
+    # Fallback: create basic structure
+    mkdir -p "$TRAE_SKILLS/gstack" "$TRAE_SKILLS/gstack/browse" "$TRAE_SKILLS/gstack/bin" "$TRAE_SKILLS/gstack/review"
+    
+    # Link runtime assets
+    ln -snf "$SOURCE_GSTACK_DIR/bin" "$TRAE_SKILLS/gstack/bin" 2>/dev/null || true
+    ln -snf "$SOURCE_GSTACK_DIR/browse/dist" "$TRAE_SKILLS/gstack/browse/dist" 2>/dev/null || true
+    ln -snf "$SOURCE_GSTACK_DIR/browse/bin" "$TRAE_SKILLS/gstack/browse/bin" 2>/dev/null || true
+    
+    # Link ETHOS.md
+    if [ -f "$SOURCE_GSTACK_DIR/ETHOS.md" ]; then
+      ln -snf "$SOURCE_GSTACK_DIR/ETHOS.md" "$TRAE_SKILLS/gstack/ETHOS.md"
+    fi
+    
+    # Link review assets
+    for f in checklist.md design-checklist.md greptile-triage.md TODOS-format.md; do
+      if [ -f "$SOURCE_GSTACK_DIR/review/$f" ]; then
+        ln -snf "$SOURCE_GSTACK_DIR/review/$f" "$TRAE_SKILLS/gstack/review/$f"
+      fi
+    done
+    
+    # Generate Trae skills
+    (
+      cd "$SOURCE_GSTACK_DIR"
+      bun run gen:skill-docs --host trae
+    )
+    
+    # Create skill files with path rewrites
+    TRAE_GSTACK="$TRAE_SKILLS/gstack"
+    if [ -f "$SOURCE_GSTACK_DIR/SKILL.md" ]; then
+      sed -e "s|~/.claude/skills/gstack|$TRAE_GSTACK|g" \
+          -e "s|\.claude/skills/gstack|$TRAE_GSTACK|g" \
+          -e "s|\$GSTACK_ROOT|$TRAE_GSTACK|g" \
+          -e "s|\$GSTACK_BIN|$TRAE_GSTACK/bin|g" \
+          -e "s|\$GSTACK_BROWSE|$TRAE_GSTACK/browse/dist|g" \
+          "$SOURCE_GSTACK_DIR/SKILL.md" > "$TRAE_GSTACK/SKILL.md"
+    fi
+    
+    # Create individual skills
+    for skill_dir in "$SOURCE_GSTACK_DIR"/*/; do
+      if [ -f "$skill_dir/SKILL.md.tmpl" ]; then
+        skill_name="$(basename "$skill_dir")"
+        [ "$skill_name" = "node_modules" ] && continue
+        [ "$skill_name" = "trae-skills" ] && continue
+        [ "$skill_name" = ".agents" ] && continue
+        [ "$skill_name" = ".github" ] && continue
+        
+        trae_skill="$TRAE_SKILLS/gstack-$skill_name"
+        mkdir -p "$trae_skill"
+        
+        if [ -f "$skill_dir/SKILL.md" ]; then
+          sed -e "s|~/.claude/skills/gstack|$TRAE_GSTACK|g" \
+              -e "s|\.claude/skills/gstack|$TRAE_GSTACK|g" \
+              -e "s|\$GSTACK_ROOT|$TRAE_GSTACK|g" \
+              -e "s|\$GSTACK_BIN|$TRAE_GSTACK/bin|g" \
+              -e "s|\$GSTACK_BROWSE|$TRAE_GSTACK/browse/dist|g" \
+              "$skill_dir/SKILL.md" > "$trae_skill/SKILL.md"
+        fi
+      fi
+    done
+    
+    echo "gstack ready (trae)."
+    echo "  browse: $BROWSE_BIN"
+    echo "  trae skills: $TRAE_SKILLS"
   fi
 fi
 

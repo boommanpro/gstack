@@ -31,7 +31,8 @@ const HOST: Host = (() => {
   const val = HOST_ARG.includes('=') ? HOST_ARG.split('=')[1] : process.argv[process.argv.indexOf(HOST_ARG) + 1];
   if (val === 'codex' || val === 'agents') return 'codex';
   if (val === 'claude') return 'claude';
-  throw new Error(`Unknown host: ${val}. Use claude, codex, or agents.`);
+  if (val === 'trae') return 'trae';
+  throw new Error(`Unknown host: ${val}. Use claude, codex, trae, or agents.`);
 })();
 
 interface HostPaths {
@@ -51,6 +52,12 @@ const HOST_PATHS: Record<Host, HostPaths> = {
   codex: {
     skillRoot: '$GSTACK_ROOT',
     localSkillRoot: '.agents/skills/gstack',
+    binDir: '$GSTACK_BIN',
+    browseDir: '$GSTACK_BROWSE',
+  },
+  trae: {
+    skillRoot: '$GSTACK_ROOT',
+    localSkillRoot: 'trae-skills/gstack',
     binDir: '$GSTACK_BIN',
     browseDir: '$GSTACK_BROWSE',
   },
