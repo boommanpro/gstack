@@ -10,14 +10,15 @@
 
 ```
 trae-skills/
-├── install.sh    # 一键安装脚本
-├── sync.sh       # 版本同步脚本
-└── README.md     # 本文档
+├── global-install.sh  # 全局安装脚本（安装到 ~/.trae/skills）
+├── install.sh         # 项目本地安装脚本
+├── sync.sh            # 版本同步脚本
+└── README.md          # 本文档
 ```
 
-安装后会生成：
+全局安装后目录结构：
 ```
-trae-skills/
+~/.trae/skills/
 ├── gstack/                    # 根技能（包含浏览器自动化）
 │   ├── SKILL.md              # 技能定义文件
 │   ├── bin/                  # CLI工具（符号链接）
@@ -28,14 +29,22 @@ trae-skills/
 ├── ... 更多技能
 ```
 
+项目本地安装后目录结构：
+```
+trae-skills/
+├── gstack/                    # 根技能
+├── gstack-review/            # PR审查技能
+├── ... 更多技能
+```
+
 ### 2. 与原始Claude技能的差异
 
 | 特性 | Claude Code | Trae IDE |
 |------|-------------|----------|
-| 技能目录 | `~/.claude/skills/gstack` | `./trae-skills/` |
+| 技能目录 | `~/.claude/skills/gstack` | `~/.trae/skills` (全局) 或 `./trae-skills/` (项目本地) |
 | 路径引用 | 硬编码路径 | 环境变量 + 相对路径 |
 | Frontmatter | 完整字段 | 仅 name + description |
-| 安装方式 | `./setup --host claude` | `./install.sh` |
+| 安装方式 | `./setup --host claude` | `./global-install.sh` 或 `./install.sh` |
 
 ### 3. 核心修改
 
@@ -48,7 +57,21 @@ trae-skills/
 
 ## 安装方法
 
-### 方法一：一键安装（推荐）
+### 方法一：全局安装（推荐）
+
+将技能安装到 `~/.trae/skills` 目录，所有项目共享：
+
+```bash
+cd trae-skills
+chmod +x global-install.sh
+./global-install.sh
+```
+
+安装后技能目录：`~/.trae/skills`
+
+### 方法二：项目本地安装
+
+将技能安装到当前项目的 `trae-skills/` 目录：
 
 ```bash
 cd trae-skills
@@ -56,13 +79,13 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### 方法二：通过主setup脚本
+### 方法三：通过主setup脚本
 
 ```bash
 ./setup --host trae
 ```
 
-### 方法三：通过npm脚本
+### 方法四：通过npm脚本
 
 ```bash
 bun run trae:install
@@ -75,12 +98,17 @@ bun run trae:install
 1. 打开 Trae IDE 设置（`Cmd+,` 或 `Ctrl+,`）
 2. 导航到 Skills/Agents 配置
 3. 添加技能目录路径：
-   ```
-   /path/to/gstack/trae-skills
-   ```
+   - **全局安装**：`~/.trae/skills`
+   - **项目本地安装**：`/path/to/gstack/trae-skills`
 
 或设置环境变量：
 ```bash
+# 全局安装
+export GSTACK_ROOT="$HOME/.trae/skills/gstack"
+export GSTACK_BIN="$HOME/.trae/skills/gstack/bin"
+export GSTACK_BROWSE="$HOME/.trae/skills/gstack/browse/dist"
+
+# 项目本地安装
 export GSTACK_ROOT="/path/to/gstack/trae-skills/gstack"
 export GSTACK_BIN="/path/to/gstack/trae-skills/gstack/bin"
 export GSTACK_BROWSE="/path/to/gstack/trae-skills/gstack/browse/dist"
