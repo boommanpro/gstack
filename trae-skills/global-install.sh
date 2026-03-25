@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gstack Trae global install — Install skills to ~/.trae/skills
+# gstack Trae global install — Install skills to ~/.trae/skills and ~/.trae-cn/skills
 # Supports: macOS, Linux, Windows (Git Bash / MSYS2 / WSL)
 set -e
 
@@ -29,12 +29,16 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GSTACK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TRAE_SKILLS="$HOME/.trae/skills"
-TRAE_GSTACK="$TRAE_SKILLS/gstack"
+
+# Installation target directories
+TRAE_SKILLS_DIRS=(
+  "$HOME/.trae/skills"
+  "$HOME/.trae-cn/skills"
+)
 
 info "Detected OS: $OS"
 info "gstack root: $GSTACK_ROOT"
-info "Target directory: $TRAE_SKILLS"
+info "Target directories: ${TRAE_SKILLS_DIRS[*]}"
 
 check_bun() {
   if ! command -v bun >/dev/null 2>&1; then
@@ -139,40 +143,44 @@ generate_skill_docs() {
   success "Skill documentation generated"
 }
 
-create_trae_global_install() {
-  info "Creating global Trae skills installation..."
+# Install skills to a specific target directory
+install_to_target() {
+  local target_skills_dir="$1"
+  local target_gstack="$target_skills_dir/gstack"
   
-  mkdir -p "$TRAE_SKILLS"
+  info "Installing to: $target_skills_dir"
   
-  if [ -L "$TRAE_GSTACK" ]; then
-    rm -f "$TRAE_GSTACK"
-  elif [ -d "$TRAE_GSTACK" ] && [ "$TRAE_GSTACK" != "$GSTACK_ROOT" ]; then
-    rm -rf "$TRAE_GSTACK"
+  mkdir -p "$target_skills_dir"
+  
+  if [ -L "$target_gstack" ]; then
+    rm -f "$target_gstack"
+  elif [ -d "$target_gstack" ] && [ "$target_gstack" != "$GSTACK_ROOT" ]; then
+    rm -rf "$target_gstack"
   fi
   
-  mkdir -p "$TRAE_GSTACK" "$TRAE_GSTACK/browse" "$TRAE_GSTACK/bin" "$TRAE_GSTACK/review"
+  mkdir -p "$target_gstack" "$target_gstack/browse" "$target_gstack/bin" "$target_gstack/review"
   
-  ln -snf "$GSTACK_ROOT/bin" "$TRAE_GSTACK/bin" 2>/dev/null || true
-  ln -snf "$GSTACK_ROOT/browse/dist" "$TRAE_GSTACK/browse/dist" 2>/dev/null || true
-  ln -snf "$GSTACK_ROOT/browse/bin" "$TRAE_GSTACK/browse/bin" 2>/dev/null || true
+  ln -snf "$GSTACK_ROOT/bin" "$target_gstack/bin" 2>/dev/null || true
+  ln -snf "$GSTACK_ROOT/browse/dist" "$target_gstack/browse/dist" 2>/dev/null || true
+  ln -snf "$GSTACK_ROOT/browse/bin" "$target_gstack/browse/bin" 2>/dev/null || true
   
   if [ -f "$GSTACK_ROOT/ETHOS.md" ]; then
-    ln -snf "$GSTACK_ROOT/ETHOS.md" "$TRAE_GSTACK/ETHOS.md"
+    ln -snf "$GSTACK_ROOT/ETHOS.md" "$target_gstack/ETHOS.md"
   fi
   
   for f in checklist.md design-checklist.md greptile-triage.md TODOS-format.md; do
     if [ -f "$GSTACK_ROOT/review/$f" ]; then
-      ln -snf "$GSTACK_ROOT/review/$f" "$TRAE_GSTACK/review/$f"
+      ln -snf "$GSTACK_ROOT/review/$f" "$target_gstack/review/$f"
     fi
   done
   
   if [ -f "$GSTACK_ROOT/SKILL.md" ]; then
-    sed -e "s|~/.claude/skills/gstack|$TRAE_GSTACK|g" \
-        -e "s|\.claude/skills/gstack|$TRAE_GSTACK|g" \
-        -e "s|\$GSTACK_ROOT|$TRAE_GSTACK|g" \
-        -e "s|\$GSTACK_BIN|$TRAE_GSTACK/bin|g" \
-        -e "s|\$GSTACK_BROWSE|$TRAE_GSTACK/browse/dist|g" \
-        "$GSTACK_ROOT/SKILL.md" > "$TRAE_GSTACK/SKILL.md"
+    sed -e "s|~/.claude/skills/gstack|$target_gstack|g" \
+        -e "s|\.claude/skills/gstack|$target_gstack|g" \
+        -e "s|\$GSTACK_ROOT|$target_gstack|g" \
+        -e "s|\$GSTACK_BIN|$target_gstack/bin|g" \
+        -e "s|\$GSTACK_BROWSE|$target_gstack/browse/dist|g" \
+        "$GSTACK_ROOT/SKILL.md" > "$target_gstack/SKILL.md"
   fi
   
   local skill_count=0
@@ -185,22 +193,30 @@ create_trae_global_install() {
       [ "$skill_name" = ".agents" ] && continue
       [ "$skill_name" = ".github" ] && continue
       
-      local trae_skill="$TRAE_SKILLS/gstack-$skill_name"
+      local trae_skill="$target_skills_dir/gstack-$skill_name"
       mkdir -p "$trae_skill"
       
       if [ -f "$skill_dir/SKILL.md" ]; then
-        sed -e "s|~/.claude/skills/gstack|$TRAE_GSTACK|g" \
-            -e "s|\.claude/skills/gstack|$TRAE_GSTACK|g" \
-            -e "s|\$GSTACK_ROOT|$TRAE_GSTACK|g" \
-            -e "s|\$GSTACK_BIN|$TRAE_GSTACK/bin|g" \
-            -e "s|\$GSTACK_BROWSE|$TRAE_GSTACK/browse/dist|g" \
+        sed -e "s|~/.claude/skills/gstack|$target_gstack|g" \
+            -e "s|\.claude/skills/gstack|$target_gstack|g" \
+            -e "s|\$GSTACK_ROOT|$target_gstack|g" \
+            -e "s|\$GSTACK_BIN|$target_gstack/bin|g" \
+            -e "s|\$GSTACK_BROWSE|$target_gstack/browse/dist|g" \
             "$skill_dir/SKILL.md" > "$trae_skill/SKILL.md"
         ((skill_count++))
       fi
     fi
   done
   
-  success "Created $skill_count Trae skills in $TRAE_SKILLS"
+  success "Created $skill_count Trae skills in $target_skills_dir"
+}
+
+create_trae_global_install() {
+  info "Creating global Trae skills installation..."
+  
+  for target_dir in "${TRAE_SKILLS_DIRS[@]}"; do
+    install_to_target "$target_dir"
+  done
 }
 
 create_state_dir() {
@@ -215,7 +231,10 @@ print_instructions() {
   echo "  gstack for Trae IDE - Global Installation Complete!"
   echo "=========================================="
   echo ""
-  echo "Skills installed to: $TRAE_SKILLS"
+  echo "Skills installed to:"
+  for target_dir in "${TRAE_SKILLS_DIRS[@]}"; do
+    echo "  - $target_dir"
+  done
   echo ""
   echo "Available skills:"
   echo "  - gstack (root skill with browser automation)"
@@ -227,12 +246,20 @@ print_instructions() {
   echo "  1. Open Trae IDE Settings (Cmd+, or Ctrl+,)"
   echo "  2. Navigate to Skills/Agents configuration"
   echo "  3. Add skill directory path:"
-  echo "     $TRAE_SKILLS"
+  for target_dir in "${TRAE_SKILLS_DIRS[@]}"; do
+    echo "     $target_dir"
+  done
   echo ""
   echo "Or set environment variables:"
-  echo "  export GSTACK_ROOT=\"$TRAE_GSTACK\""
-  echo "  export GSTACK_BIN=\"$TRAE_GSTACK/bin\""
-  echo "  export GSTACK_BROWSE=\"$TRAE_GSTACK/browse/dist\""
+  echo "  # For ~/.trae/skills"
+  echo "  export GSTACK_ROOT=\"\$HOME/.trae/skills/gstack\""
+  echo "  export GSTACK_BIN=\"\$HOME/.trae/skills/gstack/bin\""
+  echo "  export GSTACK_BROWSE=\"\$HOME/.trae/skills/gstack/browse/dist\""
+  echo ""
+  echo "  # For ~/.trae-cn/skills"
+  echo "  export GSTACK_ROOT=\"\$HOME/.trae-cn/skills/gstack\""
+  echo "  export GSTACK_BIN=\"\$HOME/.trae-cn/skills/gstack/bin\""
+  echo "  export GSTACK_BROWSE=\"\$HOME/.trae-cn/skills/gstack/browse/dist\""
   echo ""
   echo "To update skills later, run:"
   echo "  cd $GSTACK_ROOT && git pull && ./trae-skills/global-install.sh"
@@ -258,7 +285,9 @@ while [ $# -gt 0 ]; do
     --help|-h)
       echo "Usage: $0 [OPTIONS]"
       echo ""
-      echo "Install gstack skills globally to ~/.trae/skills"
+      echo "Install gstack skills globally to:"
+      echo "  - ~/.trae/skills"
+      echo "  - ~/.trae-cn/skills"
       echo ""
       echo "Options:"
       echo "  --help, -h    Show this help message"
